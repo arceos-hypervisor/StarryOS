@@ -44,6 +44,9 @@ rv:
 la:
 	$(MAKE) ARCH=loongarch64 run
 
+aarch64:
+	$(MAKE) ARCH=aarch64 APP_FEATURES=  FEATURES=driver-dyn,driver-virtio-blk BUS=mmio LD_SCRIPT=link.x MYPLAT=axplat-aarch64-dyn  run
+
 vf2:
 	$(MAKE) ARCH=riscv64 APP_FEATURES=vf2 MYPLAT=axplat-riscv64-visionfive2 BUS=dummy build
 

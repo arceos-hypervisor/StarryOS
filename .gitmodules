@@ -2,3 +2,12 @@
 	path = arceos
 	url = https://github.com/Starry-OS/arceos
 	branch = main
+[submodule "crates/axcpu"]
+	path = crates/axcpu
+	url = https://github.com/arceos-hypervisor/axcpu
+[submodule "crates/axplat-aarch64-dyn"]
+	path = crates/axplat-aarch64-dyn
+	url = https://github.com/arceos-hypervisor/axplat-aarch64-dyn
+[submodule "crates/axdriver_crates"]
+	path = crates/axdriver_crates
+	url = https://github.com/Starry-OS/axdriver_crates

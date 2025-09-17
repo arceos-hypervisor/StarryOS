@@ -3,7 +3,8 @@ use core::{any::Any, task::Context};
 
 use axfs_ng::CachedFile;
 use axfs_ng_vfs::{
-    DeviceId, FileNodeOps, FilesystemOps, Metadata, MetadataUpdate, NodeFlags, NodeOps, NodePermission, NodeType, VfsError, VfsResult
+    DeviceId, FileNodeOps, FilesystemOps, Metadata, MetadataUpdate, NodeFlags, NodeOps,
+    NodePermission, NodeType, VfsError, VfsResult,
 };
 use axio::{IoEvents, Pollable};
 use inherit_methods_macro::inherit_methods;

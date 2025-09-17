@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["api", "core"]
-exclude = ["arceos"]
+exclude = ["arceos", "crates/axdriver_crates"]
 
 [workspace.package]
 version = "0.1.0"
@@ -142,16 +142,22 @@ rev = "b9b10d7"
 features = ["fp-simd", "irq", "rtc"]
 optional = true
 
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+axplat-aarch64-dyn = {path = "crates/axplat-aarch64-dyn", features = ["irq"]}
+
 [patch.crates-io]
 axbacktrace = { git = "https://github.com/Starry-OS/axbacktrace.git", rev = "322f6da" }
-axcpu = { git = "https://github.com/Starry-OS/axcpu.git", rev = "dfaa046" }
+axcpu = { path = "crates/axcpu" }
 axerrno = { git = "https://github.com/Starry-OS/axerrno.git", rev = "f5d8f86" }
 axio = { git = "https://github.com/Starry-OS/axio.git", rev = "d1242e2" }
 axplat = { git = "https://github.com/Starry-OS/axplat_crates.git", rev = "9bf8648" }
 axplat-riscv64-qemu-virt = { git = "https://github.com/Starry-OS/axplat_crates.git", rev = "9bf8648" }
 axplat-loongarch64-qemu-virt = { git = "https://github.com/Starry-OS/axplat_crates.git", rev = "9bf8648" }
-page_table_entry = { git = "https://github.com/Starry-OS/page_table_multiarch.git", rev = "4edb821" }
-page_table_multiarch = { git = "https://github.com/Starry-OS/page_table_multiarch.git", rev = "4edb821" }
+# page_table_entry = { git = "https://github.com/Starry-OS/page_table_multiarch.git", rev = "4edb821" }
+# page_table_multiarch = { git = "https://github.com/Starry-OS/page_table_multiarch.git", rev = "4edb821" }
+page_table_entry = { git = "https://github.com/starry-mix-rk3588/page_table_multiarch", rev = "3f697c8" }
+page_table_multiarch = { git = "https://github.com/starry-mix-rk3588/page_table_multiarch", rev = "3f697c8" }
+
 starry-process = { git = "https://github.com/Starry-OS/starry-process.git", rev = "6327455" }
 starry-signal = { git = "https://github.com/Starry-OS/starry-signal.git", rev = "93176af" }
 starry-vm = { git = "https://github.com/Starry-OS/starry-vm.git", rev = "4177449" }

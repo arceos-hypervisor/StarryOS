@@ -48,3 +48,6 @@ extern crate axplat_riscv64_visionfive2;
 
 #[cfg(feature = "2k1000la")]
 extern crate axplat_loongarch64_2k1000la;
+
+#[cfg(target_arch = "aarch64")]
+extern crate axplat_aarch64_dyn;
