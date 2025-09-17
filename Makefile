@@ -53,4 +53,7 @@ vf2:
 2k1000la:
 	$(MAKE) ARCH=loongarch64 APP_FEATURES=2k1000la MYPLAT=axplat-loongarch64-2k1000la BUS=dummy build
 
+aarch64-build:
+	$(MAKE) ARCH=aarch64 LOG=debug APP_FEATURES=  FEATURES=driver-dyn,driver-virtio-blk BUS=mmio LD_SCRIPT=link.x MYPLAT=axplat-aarch64-dyn  build
+
 .PHONY: build run justrun debug disasm clean
