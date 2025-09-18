@@ -67,6 +67,7 @@ This should also download required binary dependencies like [cargo-binutils](htt
 $ make img
 $ make img ARCH=riscv64
 $ make img ARCH=loongarch64
+$ make img ARCH=aarch64
 ```
 
 This will download rootfs image from [GitHub Releases](https://github.com/Starry-OS/StarryOS/releases) and setup the disk file for running on QEMU.
@@ -80,6 +81,7 @@ $ make run ARCH=loongarch64
 # Shortcut:
 $ make rv
 $ make la
+$ make aarch64
 ```
 
 Note:
