@@ -15,7 +15,7 @@ repository = "https://github.com/arceos-org/starry-next"
 
 [workspace.dependencies]
 axfeat = { path = "arceos/api/axfeat", features = [
-    "alloc-slab",
+    "alloc-tlsf",
     "fp-simd",
     "ext4",
     "fs",
