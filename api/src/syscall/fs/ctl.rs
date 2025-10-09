@@ -7,14 +7,14 @@ use core::{
 
 use axerrno::{LinuxError, LinuxResult};
 use axfs_ng::{FS_CONTEXT, FsContext};
-use axfs_ng_vfs::{MetadataUpdate, NodePermission, NodeType, path::Path};
+use axfs_ng_vfs::{DeviceId, MetadataUpdate, NodePermission, NodeType, path::Path};
 use axhal::time::wall_time;
 use axtask::current;
 use linux_raw_sys::{
     general::*,
     ioctl::{FIONBIO, TIOCGWINSZ},
 };
-use starry_core::task::AsThread;
+use starry_core::{task::AsThread, vfs::Device as VfsDevice};
 use starry_vm::{VmPtr, vm_write_slice};
 
 use crate::{
@@ -98,6 +98,56 @@ pub fn sys_mkdirat(dirfd: i32, path: *const c_char, mode: u32) -> LinuxResult<is
 
     with_fs(dirfd, |fs| {
         fs.create_dir(path, mode)?;
+        Ok(0)
+    })
+}
+
+pub fn sys_mknodat(dirfd: i32, path: *const c_char, mode: u32, dev: u64) -> LinuxResult<isize> {
+    let path = vm_load_string(path)?;
+    debug!(
+        "sys_mknodat <= dirfd: {}, path: {:?}, mode: {}, dev: {}",
+        dirfd, path, mode, dev
+    );
+
+    // Split type and permission bits
+    let ftype = mode & (S_IFMT as u32);
+    let mut perm = (mode & !(S_IFMT as u32)) as u32;
+    // apply umask like mkdir
+    perm &= !current().as_thread().proc_data.umask();
+
+    let node_type = match ftype {
+        S_IFREG => NodeType::RegularFile,
+        S_IFCHR => NodeType::CharacterDevice,
+        S_IFBLK => NodeType::BlockDevice,
+        S_IFIFO => NodeType::Fifo,
+        S_IFSOCK => NodeType::Socket,
+        _ => return Err(LinuxError::EINVAL),
+    };
+
+    with_fs(dirfd, |fs| {
+        let (dir, name) = fs.resolve_nonexistent(Path::new(&path))?;
+        let loc = dir.create(
+            name,
+            node_type,
+            NodePermission::from_bits_truncate(perm as u16),
+        )?;
+
+        // If device node, set rdev
+        if matches!(node_type, NodeType::CharacterDevice | NodeType::BlockDevice) {
+            // Simple major/minor split: major in high bits, minor in low bits.
+            let major = (dev >> 8) as u32;
+            let minor = (dev & 0xff) as u32;
+            // Try to set device id by downcasting the created entry to a Device
+            // (this works for in-kernel SimpleFs device nodes).
+            if let Ok(dev_node) = loc.entry().downcast::<VfsDevice>() {
+                dev_node.set_device_id(DeviceId::new(major, minor));
+            } else {
+                // If downcast fails, we can't set rdev through MetadataUpdate
+                // (not supported), so just ignore and continue.
+                warn!("not a device node, cannot set rdev");
+            }
+        }
+
         Ok(0)
     })
 }

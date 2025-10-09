@@ -37,6 +37,12 @@ pub fn handle_syscall(tf: &mut TrapFrame) {
         #[cfg(target_arch = "x86_64")]
         Sysno::mkdir => sys_mkdir(tf.arg0() as _, tf.arg1() as _),
         Sysno::mkdirat => sys_mkdirat(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        Sysno::mknodat => sys_mknodat(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2() as _,
+            tf.arg3() as _,
+        ),
         Sysno::getdents64 => sys_getdents64(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
         #[cfg(target_arch = "x86_64")]
         Sysno::link => sys_link(tf.arg0() as _, tf.arg1() as _),
@@ -500,6 +506,12 @@ pub fn handle_syscall(tf: &mut TrapFrame) {
 
         // sync
         Sysno::membarrier => sys_membarrier(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        Sysno::rseq => sys_rseq(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2() as _,
+            tf.arg3() as _,
+        ),
 
         // time
         Sysno::gettimeofday => sys_gettimeofday(tf.arg0() as _),
