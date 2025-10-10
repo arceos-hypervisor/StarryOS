@@ -38,10 +38,10 @@ pub fn handle_syscall(uctx: &mut UserContext) {
         Sysno::mkdir => sys_mkdir(uctx.arg0() as _, uctx.arg1() as _),
         Sysno::mkdirat => sys_mkdirat(uctx.arg0() as _, uctx.arg1() as _, uctx.arg2() as _),
         Sysno::mknodat => sys_mknodat(
-            tf.arg0() as _,
-            tf.arg1() as _,
-            tf.arg2() as _,
-            tf.arg3() as _,
+            uctx.arg0() as _,
+            uctx.arg1() as _,
+            uctx.arg2() as _,
+            uctx.arg3() as _,
         ),
         Sysno::getdents64 => sys_getdents64(uctx.arg0() as _, uctx.arg1() as _, uctx.arg2() as _),
         #[cfg(target_arch = "x86_64")]
@@ -512,10 +512,10 @@ pub fn handle_syscall(uctx: &mut UserContext) {
         // sync
         Sysno::membarrier => sys_membarrier(uctx.arg0() as _, uctx.arg1() as _, uctx.arg2() as _),
         Sysno::rseq => sys_rseq(
-            tf.arg0() as _,
-            tf.arg1() as _,
-            tf.arg2() as _,
-            tf.arg3() as _,
+            uctx.arg0() as _,
+            uctx.arg1() as _,
+            uctx.arg2() as _,
+            uctx.arg3() as _,
         ),
 
         // time

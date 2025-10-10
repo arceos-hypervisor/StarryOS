@@ -5,7 +5,7 @@ use core::{
     time::Duration,
 };
 
-use axerrno::{AxError, AxResult};
+use axerrno::{AxError, AxResult, LinuxError, LinuxResult};
 use axfs_ng::{FS_CONTEXT, FsContext};
 use axfs_ng_vfs::{DeviceId, MetadataUpdate, NodePermission, NodeType, path::Path};
 use axhal::time::wall_time;
@@ -102,7 +102,7 @@ pub fn sys_mkdirat(dirfd: i32, path: *const c_char, mode: u32) -> AxResult<isize
     })
 }
 
-pub fn sys_mknodat(dirfd: i32, path: *const c_char, mode: u32, dev: u64) -> LinuxResult<isize> {
+pub fn sys_mknodat(dirfd: i32, path: *const c_char, mode: u32, dev: u64) -> Result<isize, AxError> {
     let path = vm_load_string(path)?;
     debug!(
         "sys_mknodat <= dirfd: {}, path: {:?}, mode: {}, dev: {}",
@@ -121,10 +121,10 @@ pub fn sys_mknodat(dirfd: i32, path: *const c_char, mode: u32, dev: u64) -> Linu
         S_IFBLK => NodeType::BlockDevice,
         S_IFIFO => NodeType::Fifo,
         S_IFSOCK => NodeType::Socket,
-        _ => return Err(LinuxError::EINVAL),
+        _ => return Err(AxError::InvalidInput),
     };
 
-    with_fs(dirfd, |fs| {
+    let res = with_fs(dirfd, |fs| {
         let (dir, name) = fs.resolve_nonexistent(Path::new(&path))?;
         let loc = dir.create(
             name,
@@ -149,7 +149,8 @@ pub fn sys_mknodat(dirfd: i32, path: *const c_char, mode: u32, dev: u64) -> Linu
         }
 
         Ok(0)
-    })
+    })?;
+    Ok(res)
 }
 
 // Directory buffer for getdents64 syscall
