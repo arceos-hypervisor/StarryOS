@@ -1,7 +1,7 @@
 [submodule "arceos"]
 	path = arceos
 	url = https://github.com/Starry-OS/arceos
-	branch = main
+	branch = dyn
 [submodule "crates/axcpu"]
 	path = crates/axcpu
 	url = https://github.com/arceos-hypervisor/axcpu
