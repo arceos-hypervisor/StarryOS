@@ -6,7 +6,7 @@ use axfs_ng_vfs::{
     DeviceId, FileNodeOps, FilesystemOps, Metadata, MetadataUpdate, NodeFlags, NodeOps,
     NodePermission, NodeType, VfsError, VfsResult,
 };
-use axio::{IoEvents, Pollable};
+use axpoll::{IoEvents, Pollable};
 use inherit_methods_macro::inherit_methods;
 use memory_addr::PhysAddrRange;
 
@@ -32,7 +32,7 @@ pub trait DeviceOps: Send + Sync {
     fn write_at(&self, buf: &[u8], offset: u64) -> VfsResult<usize>;
     /// Manipulates the underlying device parameters of special files.
     fn ioctl(&self, _cmd: u32, _arg: usize) -> VfsResult<usize> {
-        Err(VfsError::ENOTTY)
+        Err(VfsError::BadIoctl)
     }
 
     /// Casts the device operations to a dynamic type.
@@ -100,7 +100,7 @@ impl NodeOps for Device {
     fn filesystem(&self) -> &dyn FilesystemOps;
 
     fn sync(&self, _data_only: bool) -> VfsResult<()> {
-        Err(VfsError::EINVAL)
+        Err(VfsError::InvalidInput)
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
@@ -126,7 +126,7 @@ impl FileNodeOps for Device {
     }
 
     fn append(&self, _buf: &[u8]) -> VfsResult<(usize, u64)> {
-        Err(VfsError::ENOTTY)
+        Err(VfsError::BadIoctl)
     }
 
     fn set_len(&self, _len: u64) -> VfsResult<()> {
@@ -134,12 +134,12 @@ impl FileNodeOps for Device {
         if self.write_at(b"", 0).is_ok() {
             Ok(())
         } else {
-            Err(VfsError::EBADF)
+            Err(VfsError::BadFileDescriptor)
         }
     }
 
     fn set_symlink(&self, _target: &str) -> VfsResult<()> {
-        Err(VfsError::EBADF)
+        Err(VfsError::BadFileDescriptor)
     }
 
     fn ioctl(&self, cmd: u32, arg: usize) -> VfsResult<usize> {

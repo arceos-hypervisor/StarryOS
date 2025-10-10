@@ -1,10 +1,10 @@
 use core::{future::poll_fn, task::Poll};
 
-use axerrno::{LinuxError, LinuxResult};
-use axhal::context::TrapFrame;
+use axerrno::{AxError, AxResult, LinuxError};
+use axhal::uspace::UserContext;
 use axtask::{
     current,
-    future::{block_on, timeout_opt},
+    future::{self, block_on},
 };
 use linux_raw_sys::general::{
     MINSIGSTKSZ, SI_TKILL, SI_USER, SIG_BLOCK, SIG_SETMASK, SIG_UNBLOCK, kernel_sigaction, siginfo,
@@ -23,15 +23,15 @@ use crate::{
     time::TimeValueLike,
 };
 
-pub(crate) fn check_sigset_size(size: usize) -> LinuxResult<()> {
+pub(crate) fn check_sigset_size(size: usize) -> AxResult<()> {
     if size != size_of::<SignalSet>() && size != 0 {
-        return Err(LinuxError::EINVAL);
+        return Err(AxError::InvalidInput);
     }
     Ok(())
 }
 
-fn parse_signo(signo: u32) -> LinuxResult<Signo> {
-    Signo::from_repr(signo as u8).ok_or(LinuxError::EINVAL)
+fn parse_signo(signo: u32) -> AxResult<Signo> {
+    Signo::from_repr(signo as u8).ok_or(AxError::InvalidInput)
 }
 
 pub fn sys_rt_sigprocmask(
@@ -39,7 +39,7 @@ pub fn sys_rt_sigprocmask(
     set: *const SignalSet,
     oldset: *mut SignalSet,
     sigsetsize: usize,
-) -> LinuxResult<isize> {
+) -> AxResult<isize> {
     check_sigset_size(sigsetsize)?;
 
     let curr = current();
@@ -57,7 +57,7 @@ pub fn sys_rt_sigprocmask(
             SIG_BLOCK => old | set,
             SIG_UNBLOCK => old & !set,
             SIG_SETMASK => set,
-            _ => return Err(LinuxError::EINVAL),
+            _ => return Err(AxError::InvalidInput),
         };
 
         debug!("sys_rt_sigprocmask <= {:?}", set);
@@ -72,12 +72,12 @@ pub fn sys_rt_sigaction(
     act: *const kernel_sigaction,
     oldact: *mut kernel_sigaction,
     sigsetsize: usize,
-) -> LinuxResult<isize> {
+) -> AxResult<isize> {
     check_sigset_size(sigsetsize)?;
 
     let signo = parse_signo(signo)?;
     if matches!(signo, Signo::SIGKILL | Signo::SIGSTOP) {
-        return Err(LinuxError::EINVAL);
+        return Err(AxError::InvalidInput);
     }
 
     let curr = current();
@@ -93,13 +93,13 @@ pub fn sys_rt_sigaction(
     Ok(0)
 }
 
-pub fn sys_rt_sigpending(set: *mut SignalSet, sigsetsize: usize) -> LinuxResult<isize> {
+pub fn sys_rt_sigpending(set: *mut SignalSet, sigsetsize: usize) -> AxResult<isize> {
     check_sigset_size(sigsetsize)?;
     set.vm_write(current().as_thread().signal.pending())?;
     Ok(0)
 }
 
-fn make_siginfo(signo: u32, code: i32) -> LinuxResult<Option<SignalInfo>> {
+fn make_siginfo(signo: u32, code: i32) -> AxResult<Option<SignalInfo>> {
     if signo == 0 {
         return Ok(None);
     }
@@ -111,7 +111,7 @@ fn make_siginfo(signo: u32, code: i32) -> LinuxResult<Option<SignalInfo>> {
     )))
 }
 
-pub fn sys_kill(pid: i32, signo: u32) -> LinuxResult<isize> {
+pub fn sys_kill(pid: i32, signo: u32) -> AxResult<isize> {
     debug!("sys_kill: pid = {}, signo = {}", pid, signo);
     let sig = make_siginfo(signo, SI_USER as _)?;
 
@@ -146,13 +146,13 @@ pub fn sys_kill(pid: i32, signo: u32) -> LinuxResult<isize> {
     Ok(0)
 }
 
-pub fn sys_tkill(tid: Pid, signo: u32) -> LinuxResult<isize> {
+pub fn sys_tkill(tid: Pid, signo: u32) -> AxResult<isize> {
     let sig = make_siginfo(signo, SI_TKILL)?;
     send_signal_to_thread(None, tid, sig)?;
     Ok(0)
 }
 
-pub fn sys_tgkill(tgid: Pid, tid: Pid, signo: u32) -> LinuxResult<isize> {
+pub fn sys_tgkill(tgid: Pid, tid: Pid, signo: u32) -> AxResult<isize> {
     let sig = make_siginfo(signo, SI_TKILL)?;
     send_signal_to_thread(Some(tgid), tid, sig)?;
     Ok(0)
@@ -162,7 +162,7 @@ pub(crate) fn make_queue_signal_info(
     tgid: Pid,
     signo: u32,
     sig: *const SignalInfo,
-) -> LinuxResult<Option<SignalInfo>> {
+) -> AxResult<Option<SignalInfo>> {
     if signo == 0 {
         return Ok(None);
     }
@@ -173,7 +173,7 @@ pub(crate) fn make_queue_signal_info(
     if current().as_thread().proc_data.proc.pid() != tgid
         && (sig.code() >= 0 || sig.code() == SI_TKILL)
     {
-        return Err(LinuxError::EPERM);
+        return Err(AxError::OperationNotPermitted);
     }
     Ok(Some(sig))
 }
@@ -183,7 +183,7 @@ pub fn sys_rt_sigqueueinfo(
     signo: u32,
     sig: *const SignalInfo,
     sigsetsize: usize,
-) -> LinuxResult<isize> {
+) -> AxResult<isize> {
     check_sigset_size(sigsetsize)?;
 
     let sig = make_queue_signal_info(tgid, signo, sig)?;
@@ -197,7 +197,7 @@ pub fn sys_rt_tgsigqueueinfo(
     signo: u32,
     sig: *const SignalInfo,
     sigsetsize: usize,
-) -> LinuxResult<isize> {
+) -> AxResult<isize> {
     check_sigset_size(sigsetsize)?;
 
     let sig = make_queue_signal_info(tgid, signo, sig)?;
@@ -205,19 +205,19 @@ pub fn sys_rt_tgsigqueueinfo(
     Ok(0)
 }
 
-pub fn sys_rt_sigreturn(tf: &mut TrapFrame) -> LinuxResult<isize> {
+pub fn sys_rt_sigreturn(uctx: &mut UserContext) -> AxResult<isize> {
     block_next_signal();
-    current().as_thread().signal.restore(tf);
-    Ok(tf.retval() as isize)
+    current().as_thread().signal.restore(uctx);
+    Ok(uctx.retval() as isize)
 }
 
 pub fn sys_rt_sigtimedwait(
-    tf: &mut TrapFrame,
+    uctx: &mut UserContext,
     set: *const SignalSet,
     info: *mut siginfo,
     timeout: *const timespec,
     sigsetsize: usize,
-) -> LinuxResult<isize> {
+) -> AxResult<isize> {
     check_sigset_size(sigsetsize)?;
 
     let set = unsafe { set.vm_read_uninit()?.assume_init() };
@@ -241,23 +241,23 @@ pub fn sys_rt_sigtimedwait(
     let old_blocked = signal.blocked();
     signal.set_blocked(old_blocked & !set);
 
-    tf.set_retval(-LinuxError::EINTR.code() as usize);
+    uctx.set_retval(-LinuxError::EINTR.code() as usize);
     let fut = poll_fn(|context| {
         if let Some(sig) = signal.dequeue_signal(&set) {
             signal.set_blocked(old_blocked);
             Poll::Ready(Some(sig))
-        } else if check_signals(thr, tf, Some(old_blocked)) {
+        } else if check_signals(thr, uctx, Some(old_blocked)) {
             Poll::Ready(None)
         } else {
-            curr.register_interrupt_waker(context.waker());
+            curr.on_interrupt(context.waker());
             Poll::Pending
         }
     });
 
-    let Some(sig) = block_on(timeout_opt(fut, timeout)) else {
+    let Ok(sig) = block_on(future::timeout(timeout, fut)) else {
         // Timeout
         signal.set_blocked(old_blocked);
-        return Err(LinuxError::EAGAIN);
+        return Err(AxError::WouldBlock);
     };
     let Some(sig) = sig else {
         // Interrupted
@@ -272,10 +272,10 @@ pub fn sys_rt_sigtimedwait(
 }
 
 pub fn sys_rt_sigsuspend(
-    tf: &mut TrapFrame,
+    uctx: &mut UserContext,
     set: *const SignalSet,
     sigsetsize: usize,
-) -> LinuxResult<isize> {
+) -> AxResult<isize> {
     check_sigset_size(sigsetsize)?;
 
     let curr = current();
@@ -284,20 +284,20 @@ pub fn sys_rt_sigsuspend(
     let set = unsafe { set.vm_read_uninit()?.assume_init() };
     let old_blocked = thr.signal.set_blocked(set);
 
-    tf.set_retval(-LinuxError::EINTR.code() as usize);
+    uctx.set_retval(-LinuxError::EINTR.code() as usize);
 
     block_on(poll_fn(|context| {
-        if check_signals(thr, tf, Some(old_blocked)) {
+        if check_signals(thr, uctx, Some(old_blocked)) {
             return Poll::Ready(());
         }
-        curr.register_interrupt_waker(context.waker());
+        curr.on_interrupt(context.waker());
         Poll::Pending
     }));
 
     Ok(0)
 }
 
-pub fn sys_sigaltstack(ss: *const SignalStack, old_ss: *mut SignalStack) -> LinuxResult<isize> {
+pub fn sys_sigaltstack(ss: *const SignalStack, old_ss: *mut SignalStack) -> AxResult<isize> {
     let curr = current();
     let sig = &curr.as_thread().signal;
 
@@ -308,7 +308,7 @@ pub fn sys_sigaltstack(ss: *const SignalStack, old_ss: *mut SignalStack) -> Linu
     if let Some(ss) = ss.nullable() {
         let ss = unsafe { ss.vm_read_uninit()?.assume_init() };
         if ss.size <= MINSIGSTKSZ as usize {
-            return Err(LinuxError::ENOMEM);
+            return Err(AxError::NoMemory);
         }
         sig.set_stack(ss);
     }

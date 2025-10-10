@@ -14,9 +14,9 @@ use core::{
     sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicUsize, Ordering},
 };
 
-use axerrno::{LinuxError, LinuxResult};
-use axio::PollSet;
+use axerrno::{AxError, AxResult};
 use axmm::AddrSpace;
+use axpoll::PollSet;
 use axsync::{Mutex, spin::SpinNoIrq};
 use axtask::{AxTaskRef, TaskExt, TaskInner, WeakAxTaskRef, current};
 use extern_trait::extern_trait;
@@ -422,11 +422,11 @@ pub fn tasks() -> Vec<AxTaskRef> {
 }
 
 /// Finds the task with the given TID.
-pub fn get_task(tid: Pid) -> LinuxResult<AxTaskRef> {
+pub fn get_task(tid: Pid) -> AxResult<AxTaskRef> {
     if tid == 0 {
         return Ok(current().clone());
     }
-    TASK_TABLE.read().get(&tid).ok_or(LinuxError::ESRCH)
+    TASK_TABLE.read().get(&tid).ok_or(AxError::NoSuchProcess)
 }
 
 /// Lists all processes.
@@ -435,24 +435,24 @@ pub fn processes() -> Vec<Arc<ProcessData>> {
 }
 
 /// Finds the process with the given PID.
-pub fn get_process_data(pid: Pid) -> LinuxResult<Arc<ProcessData>> {
+pub fn get_process_data(pid: Pid) -> AxResult<Arc<ProcessData>> {
     if pid == 0 {
         return Ok(current().as_thread().proc_data.clone());
     }
-    PROCESS_TABLE.read().get(&pid).ok_or(LinuxError::ESRCH)
+    PROCESS_TABLE.read().get(&pid).ok_or(AxError::NoSuchProcess)
 }
 
 /// Finds the process group with the given PGID.
-pub fn get_process_group(pgid: Pid) -> LinuxResult<Arc<ProcessGroup>> {
+pub fn get_process_group(pgid: Pid) -> AxResult<Arc<ProcessGroup>> {
     PROCESS_GROUP_TABLE
         .read()
         .get(&pgid)
-        .ok_or(LinuxError::ESRCH)
+        .ok_or(AxError::NoSuchProcess)
 }
 
 /// Finds the session with the given SID.
-pub fn get_session(sid: Pid) -> LinuxResult<Arc<Session>> {
-    SESSION_TABLE.read().get(&sid).ok_or(LinuxError::ESRCH)
+pub fn get_session(sid: Pid) -> AxResult<Arc<Session>> {
+    SESSION_TABLE.read().get(&sid).ok_or(AxError::NoSuchProcess)
 }
 
 /// Poll the timer
@@ -485,22 +485,17 @@ pub fn set_timer_state(task: &TaskInner, state: TimerState) {
 }
 
 fn send_signal_thread_inner(task: &TaskInner, thr: &Thread, sig: SignalInfo) {
-    let signo = sig.signo();
     if thr.signal.send_signal(sig) {
-        task.interrupt(thr.proc_data.signal.can_restart(signo));
+        task.interrupt();
     }
 }
 
 /// Sends a signal to a thread.
-pub fn send_signal_to_thread(
-    tgid: Option<Pid>,
-    tid: Pid,
-    sig: Option<SignalInfo>,
-) -> LinuxResult<()> {
+pub fn send_signal_to_thread(tgid: Option<Pid>, tid: Pid, sig: Option<SignalInfo>) -> AxResult<()> {
     let task = get_task(tid)?;
-    let thread = task.try_as_thread().ok_or(LinuxError::EPERM)?;
+    let thread = task.try_as_thread().ok_or(AxError::OperationNotPermitted)?;
     if tgid.is_some_and(|tgid| thread.proc_data.proc.pid() != tgid) {
-        return Err(LinuxError::ESRCH);
+        return Err(AxError::NoSuchProcess);
     }
 
     if let Some(sig) = sig {
@@ -512,7 +507,7 @@ pub fn send_signal_to_thread(
 }
 
 /// Sends a signal to a process.
-pub fn send_signal_to_process(pid: Pid, sig: Option<SignalInfo>) -> LinuxResult<()> {
+pub fn send_signal_to_process(pid: Pid, sig: Option<SignalInfo>) -> AxResult<()> {
     let proc_data = get_process_data(pid)?;
 
     if let Some(sig) = sig {
@@ -521,7 +516,7 @@ pub fn send_signal_to_process(pid: Pid, sig: Option<SignalInfo>) -> LinuxResult<
         if let Some(tid) = proc_data.signal.send_signal(sig)
             && let Ok(task) = get_task(tid)
         {
-            task.interrupt(proc_data.signal.can_restart(signo));
+            task.interrupt();
         }
     }
 
@@ -529,7 +524,7 @@ pub fn send_signal_to_process(pid: Pid, sig: Option<SignalInfo>) -> LinuxResult<
 }
 
 /// Sends a signal to a process group.
-pub fn send_signal_to_process_group(pgid: Pid, sig: Option<SignalInfo>) -> LinuxResult<()> {
+pub fn send_signal_to_process_group(pgid: Pid, sig: Option<SignalInfo>) -> AxResult<()> {
     let pg = get_process_group(pgid)?;
 
     if let Some(sig) = sig {

@@ -1,9 +1,12 @@
 use alloc::vec::Vec;
 use core::{future::poll_fn, task::Poll};
 
-use axerrno::{LinuxError, LinuxResult};
-use axhal::context::TrapFrame;
-use axtask::{current, future::try_block_on};
+use axerrno::{AxError, AxResult, LinuxError};
+use axhal::uspace::UserContext;
+use axtask::{
+    current,
+    future::{block_on, interruptible},
+};
 use bitflags::bitflags;
 use linux_raw_sys::general::{
     __WALL, __WCLONE, __WNOTHREAD, WCONTINUED, WEXITED, WNOHANG, WNOWAIT, WUNTRACED,
@@ -60,11 +63,11 @@ impl WaitPid {
 }
 
 pub fn sys_waitpid(
-    tf: &mut TrapFrame,
+    uctx: &mut UserContext,
     pid: i32,
     exit_code: *mut i32,
     options: u32,
-) -> LinuxResult<isize> {
+) -> AxResult<isize> {
     let options = WaitOptions::from_bits_truncate(options);
     info!("sys_waitpid <= pid: {:?}, options: {:?}", pid, options);
 
@@ -90,7 +93,7 @@ pub fn sys_waitpid(
         .filter(|child| pid.apply(child))
         .collect::<Vec<_>>();
     if children.is_empty() {
-        return Err(LinuxError::ECHILD);
+        return Err(AxError::Other(LinuxError::ECHILD));
     }
 
     let check_children = || {
@@ -101,34 +104,31 @@ pub fn sys_waitpid(
             if let Some(exit_code) = exit_code.nullable() {
                 exit_code.vm_write(child.exit_code())?;
             }
-            Ok(child.pid() as _)
+            Ok(Some(child.pid() as _))
         } else if options.contains(WaitOptions::WNOHANG) {
-            Ok(0)
+            Ok(Some(0))
         } else {
-            Err(LinuxError::EAGAIN)
+            Ok(None)
         }
     };
 
-    let result = try_block_on(poll_fn(|cx| match check_children() {
-        Ok(pid) => Poll::Ready(Ok(pid)),
-        Err(LinuxError::EAGAIN) => {
-            proc_data.child_exit_event.register(cx.waker());
-            match check_children() {
-                Ok(pid) => Poll::Ready(Ok(pid)),
-                Err(LinuxError::EAGAIN) => Poll::Pending,
-                other => Poll::Ready(other),
+    let result = block_on(interruptible(poll_fn(|cx| {
+        match check_children().transpose() {
+            Some(res) => Poll::Ready(res),
+            None => {
+                proc_data.child_exit_event.register(cx.waker());
+                Poll::Pending
             }
         }
-        other => Poll::Ready(other),
-    }));
+    })));
     match result {
-        Ok(Some(result)) => Ok(result),
-        Ok(None) => {
-            // RESTART
-            tf.set_ip(tf.ip() - 4);
-            while check_signals(curr.as_thread(), tf, None) {}
+        Ok(r) => r,
+        Err(_) => {
+            // FIXME: more general syscall RESTART
+            let ip = uctx.ip() - 4;
+            uctx.set_ip(ip);
+            while check_signals(curr.as_thread(), uctx, None) {}
             Ok(0)
         }
-        Err(err) => Err(err),
     }
 }

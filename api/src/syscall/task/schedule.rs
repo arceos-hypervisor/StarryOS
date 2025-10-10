@@ -1,8 +1,8 @@
-use axerrno::{LinuxError, LinuxResult};
+use axerrno::{AxError, AxResult};
 use axhal::time::TimeValue;
 use axtask::{
     AxCpuMask, current,
-    future::{block_on_interruptible, sleep},
+    future::{block_on, interruptible, sleep},
 };
 use linux_raw_sys::general::{
     __kernel_clockid_t, CLOCK_MONOTONIC, CLOCK_REALTIME, PRIO_PGRP, PRIO_PROCESS, PRIO_USER,
@@ -13,7 +13,7 @@ use starry_vm::{VmMutPtr, VmPtr, vm_load, vm_write_slice};
 
 use crate::time::TimeValueLike;
 
-pub fn sys_sched_yield() -> LinuxResult<isize> {
+pub fn sys_sched_yield() -> AxResult<isize> {
     axtask::yield_now();
     Ok(0)
 }
@@ -25,16 +25,13 @@ fn sleep_impl(clock: impl Fn() -> TimeValue, dur: TimeValue) -> TimeValue {
 
     // TODO: currently ignoring concrete clock type
     // We detect EINTR manually if the slept time is not enough.
-    let _ = block_on_interruptible(async {
-        sleep(dur).await;
-        Ok(())
-    });
+    let _ = block_on(interruptible(sleep(dur)));
 
     clock() - start
 }
 
 /// Sleep some nanoseconds
-pub fn sys_nanosleep(req: *const timespec, rem: *mut timespec) -> LinuxResult<isize> {
+pub fn sys_nanosleep(req: *const timespec, rem: *mut timespec) -> AxResult<isize> {
     // FIXME: AnyBitPattern
     let req = unsafe { req.vm_read_uninit()?.assume_init() }.try_into_time_value()?;
     debug!("sys_nanosleep <= req: {:?}", req);
@@ -46,7 +43,7 @@ pub fn sys_nanosleep(req: *const timespec, rem: *mut timespec) -> LinuxResult<is
         if let Some(rem) = rem.nullable() {
             rem.vm_write(timespec::from_time_value(diff))?;
         }
-        Err(LinuxError::EINTR)
+        Err(AxError::Interrupted)
     } else {
         Ok(0)
     }
@@ -57,13 +54,13 @@ pub fn sys_clock_nanosleep(
     flags: u32,
     req: *const timespec,
     rem: *mut timespec,
-) -> LinuxResult<isize> {
+) -> AxResult<isize> {
     let clock = match clock_id as u32 {
         CLOCK_REALTIME => axhal::time::wall_time,
         CLOCK_MONOTONIC => axhal::time::monotonic_time,
         _ => {
             warn!("Unsupported clock_id: {}", clock_id);
-            return Err(LinuxError::EINVAL);
+            return Err(AxError::InvalidInput);
         }
     };
 
@@ -86,24 +83,20 @@ pub fn sys_clock_nanosleep(
         if let Some(rem) = rem.nullable() {
             rem.vm_write(timespec::from_time_value(diff))?;
         }
-        Err(LinuxError::EINTR)
+        Err(AxError::Interrupted)
     } else {
         Ok(0)
     }
 }
 
-pub fn sys_sched_getaffinity(
-    pid: i32,
-    cpusetsize: usize,
-    user_mask: *mut u8,
-) -> LinuxResult<isize> {
+pub fn sys_sched_getaffinity(pid: i32, cpusetsize: usize, user_mask: *mut u8) -> AxResult<isize> {
     if cpusetsize * 8 < axconfig::plat::CPU_NUM {
-        return Err(LinuxError::EINVAL);
+        return Err(AxError::InvalidInput);
     }
 
     // TODO: support other threads
     if pid != 0 {
-        return Err(LinuxError::EPERM);
+        return Err(AxError::OperationNotPermitted);
     }
 
     let mask = current().cpumask();
@@ -118,7 +111,7 @@ pub fn sys_sched_setaffinity(
     _pid: i32,
     cpusetsize: usize,
     user_mask: *const u8,
-) -> LinuxResult<isize> {
+) -> AxResult<isize> {
     let size = cpusetsize.min(axconfig::plat::CPU_NUM.div_ceil(8));
     let user_mask = vm_load(user_mask, size)?;
     let mut cpu_mask = AxCpuMask::new();
@@ -135,19 +128,19 @@ pub fn sys_sched_setaffinity(
     Ok(0)
 }
 
-pub fn sys_sched_getscheduler(_pid: i32) -> LinuxResult<isize> {
+pub fn sys_sched_getscheduler(_pid: i32) -> AxResult<isize> {
     Ok(SCHED_RR as _)
 }
 
-pub fn sys_sched_setscheduler(_pid: i32, _policy: i32, _param: *const ()) -> LinuxResult<isize> {
+pub fn sys_sched_setscheduler(_pid: i32, _policy: i32, _param: *const ()) -> AxResult<isize> {
     Ok(0)
 }
 
-pub fn sys_sched_getparam(_pid: i32, _param: *mut ()) -> LinuxResult<isize> {
+pub fn sys_sched_getparam(_pid: i32, _param: *mut ()) -> AxResult<isize> {
     Ok(0)
 }
 
-pub fn sys_getpriority(which: u32, who: u32) -> LinuxResult<isize> {
+pub fn sys_getpriority(which: u32, who: u32) -> AxResult<isize> {
     debug!("sys_getpriority <= which: {}, who: {}", which, who);
 
     match which {
@@ -167,9 +160,9 @@ pub fn sys_getpriority(which: u32, who: u32) -> LinuxResult<isize> {
             if who == 0 {
                 Ok(20)
             } else {
-                Err(LinuxError::ESRCH)
+                Err(AxError::NoSuchProcess)
             }
         }
-        _ => Err(LinuxError::EINVAL),
+        _ => Err(AxError::InvalidInput),
     }
 }

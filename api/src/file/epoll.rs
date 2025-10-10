@@ -11,8 +11,8 @@ use core::{
     task::{Context, Waker},
 };
 
-use axerrno::{LinuxError, LinuxResult};
-use axio::{IoEvents, PollSet, Pollable};
+use axerrno::{AxError, AxResult};
+use axpoll::{IoEvents, PollSet, Pollable};
 use bitflags::bitflags;
 use hashbrown::HashMap;
 use kspin::SpinNoPreempt;
@@ -42,7 +42,7 @@ struct EntryKey {
     file: Weak<dyn FileLike>,
 }
 impl EntryKey {
-    fn new(fd: i32) -> LinuxResult<Self> {
+    fn new(fd: i32) -> AxResult<Self> {
         let file = get_file_like(fd)?;
         Ok(Self {
             fd,
@@ -168,36 +168,36 @@ impl Epoll {
         }
     }
 
-    pub fn add(&self, fd: i32, event: EpollEvent, flags: EpollFlags) -> LinuxResult<()> {
+    pub fn add(&self, fd: i32, event: EpollEvent, flags: EpollFlags) -> AxResult<()> {
         let key = EntryKey::new(fd)?;
         let mut guard = self.interests.lock();
         let interest = EpollInterest::new(key.clone(), event, flags);
         let interest = guard
             .try_insert(key.clone(), Arc::new(interest))
-            .map_err(|_| LinuxError::EEXIST)?;
+            .map_err(|_| AxError::AlreadyExists)?;
         self.repoll(interest);
         Ok(())
     }
 
-    pub fn modify(&self, fd: i32, event: EpollEvent, flags: EpollFlags) -> LinuxResult<()> {
+    pub fn modify(&self, fd: i32, event: EpollEvent, flags: EpollFlags) -> AxResult<()> {
         let key = EntryKey::new(fd)?;
         let mut guard = self.interests.lock();
-        let interest = guard.get_mut(&key).ok_or(LinuxError::ENOENT)?;
+        let interest = guard.get_mut(&key).ok_or(AxError::NotFound)?;
         *interest = Arc::new(EpollInterest::new(key, event, flags));
         self.repoll(interest);
         Ok(())
     }
 
-    pub fn delete(&self, fd: i32) -> LinuxResult<()> {
+    pub fn delete(&self, fd: i32) -> AxResult<()> {
         let key = EntryKey::new(fd)?;
         self.interests
             .lock()
             .remove(&key)
             .map(|_| ())
-            .ok_or(LinuxError::ENOENT)
+            .ok_or(AxError::NotFound)
     }
 
-    pub fn poll_events(&self, out: &mut [epoll_event]) -> LinuxResult<usize> {
+    pub fn poll_events(&self, out: &mut [epoll_event]) -> AxResult<usize> {
         let mut ready = self.ready.lock();
         let mut result = 0;
         let len = ready.len();
@@ -222,7 +222,7 @@ impl Epoll {
             let (event, still_ready) = interest.poll(file.as_ref());
             if let Some(event) = event {
                 *slot = epoll_event {
-                    events: event.events.bits() as u32,
+                    events: event.events.bits(),
                     data: event.user_data,
                 };
                 result += 1;
@@ -240,7 +240,7 @@ impl Epoll {
         }
 
         if result == 0 {
-            Err(LinuxError::EAGAIN)
+            Err(AxError::WouldBlock)
         } else {
             Ok(result)
         }
@@ -248,15 +248,15 @@ impl Epoll {
 }
 
 impl FileLike for Epoll {
-    fn read(&self, _dst: &mut SealedBufMut) -> LinuxResult<usize> {
-        Err(LinuxError::EINVAL)
+    fn read(&self, _dst: &mut SealedBufMut) -> AxResult<usize> {
+        Err(AxError::InvalidInput)
     }
 
-    fn write(&self, _src: &mut SealedBuf) -> LinuxResult<usize> {
-        Err(LinuxError::EINVAL)
+    fn write(&self, _src: &mut SealedBuf) -> AxResult<usize> {
+        Err(AxError::InvalidInput)
     }
 
-    fn stat(&self) -> LinuxResult<Kstat> {
+    fn stat(&self) -> AxResult<Kstat> {
         Ok(Kstat::default())
     }
 
