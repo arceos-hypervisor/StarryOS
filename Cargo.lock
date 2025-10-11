@@ -365,7 +365,10 @@ dependencies = [
  "cfg-if",
  "log",
  "memory_addr",
+ "rdif-clk",
  "rdrive",
+ "rk3588-clk",
+ "rockchip-pm",
 ]
 
 [[package]]
@@ -2531,6 +2534,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ca88d725a0a943b096803bd34e73a4437208b6077654cc4ecb2947a5f91618d"
 
 [[package]]
+name = "mbarrier"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9257ea6fe9726d1f1a67fddbda4c06cc97b4fb18716b78ec03ba05e29d625e28"
+
+[[package]]
 name = "memchr"
 version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3164,6 +3173,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rdif-clk"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9af012204e25d45735aa141b475c411b833b4f4bc580924905745d4afbbf606"
+dependencies = [
+ "rdif-base",
+]
+
+[[package]]
 name = "rdif-def"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3419,6 +3437,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07aac72f95e774476db82916d79f2d303191310393830573c1ab5c821b21660a"
 
 [[package]]
+name = "rk3588-clk"
+version = "0.1.0"
+source = "git+https://github.com/drivercraft/rk3588-clk#9cce055fd8799ba1b6202093ff7631a965ad7428"
+dependencies = [
+ "bare-test-macros",
+ "log",
+ "mbarrier",
+ "tock-registers 0.10.0",
+]
+
+[[package]]
 name = "rlsf"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3428,6 +3457,18 @@ dependencies = [
  "const-default",
  "libc",
  "svgbobdoc",
+]
+
+[[package]]
+name = "rockchip-pm"
+version = "0.1.0"
+source = "git+https://github.com/drivercraft/rockchip-pm.git#d20b16cf26714e37b3bc45634d31d547842d63cd"
+dependencies = [
+ "bare-test-macros",
+ "dma-api",
+ "log",
+ "mbarrier",
+ "tock-registers 0.10.0",
 ]
 
 [[package]]
