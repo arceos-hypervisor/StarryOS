@@ -9,6 +9,7 @@ mod r#loop;
 #[cfg(feature = "memtrack")]
 mod memtrack;
 mod rtc;
+mod rknpu;
 pub mod tty;
 
 use alloc::{format, sync::Arc};
@@ -208,6 +209,16 @@ fn builder(fs: Arc<SimpleFs>) -> DirMaker {
             ),
         );
     }
+
+    root.add(
+        "rknpu",
+        Device::new(
+            fs.clone(),
+            NodeType::CharacterDevice,
+            DeviceId::new(5, 0),
+            Arc::new(rknpu::Rknpu),
+        ),
+    );
 
     root.add(
         "tty",
