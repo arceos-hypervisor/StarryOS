@@ -347,6 +347,7 @@ dependencies = [
  "cfg-if",
  "crate_interface",
  "dma-api 0.5.1",
+ "gpt_disk_io",
  "lazyinit",
  "log",
  "memory_addr",
