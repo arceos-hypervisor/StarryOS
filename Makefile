@@ -3,6 +3,7 @@ export ARCH := riscv64
 export LOG := warn
 export BACKTRACE := y
 export MEMTRACK := n
+export SMP=1
 
 # QEMU Options
 export BLK := y

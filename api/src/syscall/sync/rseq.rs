@@ -1,4 +1,4 @@
-use axerrno::{LinuxError, LinuxResult};
+use axerrno::AxError;
 use axtask::current;
 use starry_core::task::AsThread;
 use starry_vm::VmPtr;
@@ -11,7 +11,7 @@ use starry_vm::VmPtr;
 ///
 /// C prototype (simplified):
 /// long rseq(void *addr, uint32_t len, int flags, uint32_t sig);
-pub fn sys_rseq(addr: *mut u8, len: usize, flags: u32, sig: u32) -> LinuxResult<isize> {
+pub fn sys_rseq(addr: *mut u8, len: usize, flags: u32, sig: u32) -> Result<isize, AxError> {
     debug!(
         "sys_rseq <= addr: {:?}, len: {}, flags: {}, sig: {}",
         addr, len, flags, sig
@@ -22,7 +22,7 @@ pub fn sys_rseq(addr: *mut u8, len: usize, flags: u32, sig: u32) -> LinuxResult<
     // size. For simplicity accept any non-zero len up to a reasonable limit.
     if addr.is_null() {
         if len != 0 {
-            return Err(LinuxError::EINVAL);
+            return Err(AxError::InvalidInput);
         }
         // unregister
         current().as_thread().set_rseq_area(0);
@@ -30,13 +30,13 @@ pub fn sys_rseq(addr: *mut u8, len: usize, flags: u32, sig: u32) -> LinuxResult<
     }
 
     if len == 0 {
-        return Err(LinuxError::EINVAL);
+        return Err(AxError::InvalidInput);
     }
 
     // Check that the user pointer is readable/writable (we only need the address).
     // Try to read one byte to ensure the area is valid.
     if addr.vm_read().is_err() {
-        return Err(LinuxError::EFAULT);
+        return Err(AxError::InvalidInput);
     }
 
     // Store the user address in the thread.

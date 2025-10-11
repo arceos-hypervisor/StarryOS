@@ -1,9 +1,9 @@
 use alloc::{string::ToString, sync::Arc, vec::Vec};
 use core::ffi::c_char;
 
-use axerrno::{LinuxError, LinuxResult};
+use axerrno::{AxError, AxResult};
 use axfs_ng::FS_CONTEXT;
-use axhal::context::TrapFrame;
+use axhal::uspace::UserContext;
 use axtask::current;
 use starry_core::{mm::load_user_app, task::AsThread};
 use starry_vm::vm_load_until_nul;
@@ -11,11 +11,11 @@ use starry_vm::vm_load_until_nul;
 use crate::{file::FD_TABLE, mm::vm_load_string};
 
 pub fn sys_execve(
-    tf: &mut TrapFrame,
+    uctx: &mut UserContext,
     path: *const c_char,
     argv: *const *const c_char,
     envp: *const *const c_char,
-) -> LinuxResult<isize> {
+) -> AxResult<isize> {
     let path = vm_load_string(path)?;
 
     let args = vm_load_until_nul(argv)?
@@ -39,7 +39,7 @@ pub fn sys_execve(
     if proc_data.proc.threads().len() > 1 {
         // TODO: handle multi-thread case
         error!("sys_execve: multi-thread not supported");
-        return Err(LinuxError::EAGAIN);
+        return Err(AxError::WouldBlock);
     }
 
     let mut aspace = proc_data.aspace.lock();
@@ -66,7 +66,7 @@ pub fn sys_execve(
     }
     drop(fd_table);
 
-    tf.set_ip(entry_point.as_usize());
-    tf.set_sp(user_stack_base.as_usize());
+    uctx.set_ip(entry_point.as_usize());
+    uctx.set_sp(user_stack_base.as_usize());
     Ok(0)
 }

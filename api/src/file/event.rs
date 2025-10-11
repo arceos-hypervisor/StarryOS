@@ -5,8 +5,9 @@ use core::{
     task::Context,
 };
 
-use axerrno::LinuxError;
-use axio::{Buf, BufMut, IoEvents, PollSet, Pollable, Read, Write};
+use axerrno::AxError;
+use axio::{Buf, BufMut, Read, Write};
+use axpoll::{IoEvents, PollSet, Pollable};
 use axtask::future::Poller;
 
 use crate::file::{FileLike, Kstat, SealedBuf, SealedBufMut};
@@ -36,7 +37,7 @@ impl EventFd {
 impl FileLike for EventFd {
     fn read(&self, dst: &mut SealedBufMut) -> axio::Result<usize> {
         if dst.remaining_mut() < size_of::<u64>() {
-            return Err(LinuxError::EINVAL);
+            return Err(AxError::InvalidInput);
         }
 
         Poller::new(self, IoEvents::IN)
@@ -58,21 +59,21 @@ impl FileLike for EventFd {
                         self.poll_tx.wake();
                         Ok(size_of::<u64>())
                     }
-                    Err(_) => Err(LinuxError::EAGAIN),
+                    Err(_) => Err(AxError::WouldBlock),
                 }
             })
     }
 
     fn write(&self, src: &mut SealedBuf) -> axio::Result<usize> {
         if src.remaining() < size_of::<u64>() {
-            return Err(LinuxError::EINVAL);
+            return Err(AxError::InvalidInput);
         }
 
         let mut value = [0; size_of::<u64>()];
         src.read(&mut value)?;
         let value = u64::from_ne_bytes(value);
         if value == u64::MAX {
-            return Err(LinuxError::EINVAL);
+            return Err(AxError::InvalidInput);
         }
 
         Poller::new(self, IoEvents::OUT)
@@ -92,7 +93,7 @@ impl FileLike for EventFd {
                         self.poll_rx.wake();
                         Ok(size_of::<u64>())
                     }
-                    Err(_) => Err(LinuxError::EAGAIN),
+                    Err(_) => Err(AxError::WouldBlock),
                 }
             })
     }
