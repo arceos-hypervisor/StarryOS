@@ -1,6 +1,6 @@
 use core::any::Any;
 
-use axfs_ng_vfs::{DeviceId, NodeFlags, VfsResult, VfsError};
+use axfs_ng_vfs::{DeviceId, NodeFlags, VfsError, VfsResult};
 use starry_vm::VmMutPtr;
 
 use crate::vfs::DeviceOps;
@@ -13,12 +13,20 @@ pub struct Rknpu;
 
 impl DeviceOps for Rknpu {
     fn read_at(&self, _buf: &mut [u8], _offset: u64) -> VfsResult<usize> {
-        info!("rknpu: read_at called, offset={} len={}", _offset, _buf.len());
+        info!(
+            "rknpu: read_at called, offset={} len={}",
+            _offset,
+            _buf.len()
+        );
         Ok(0)
     }
 
     fn write_at(&self, _buf: &[u8], _offset: u64) -> VfsResult<usize> {
-        info!("rknpu: write_at called, offset={} len={}", _offset, _buf.len());
+        info!(
+            "rknpu: write_at called, offset={} len={}",
+            _offset,
+            _buf.len()
+        );
         Ok(0)
     }
 
@@ -46,4 +54,19 @@ impl DeviceOps for Rknpu {
     fn flags(&self) -> NodeFlags {
         NodeFlags::NON_CACHEABLE | NodeFlags::STREAM
     }
+}
+
+fn npu() -> Result<rdrive::DeviceGuard<::rknpu::Rknpu>, VfsError> {
+    rdrive::get_one()
+        .ok_or(VfsError::NotFound)?
+        .try_lock()
+        .map_err(|_| VfsError::AddressInUse)
+}
+
+fn with_npu<F, R>(f: F) -> Result<R, VfsError>
+where
+    F: FnOnce(&mut ::rknpu::Rknpu) -> Result<R, VfsError>,
+{
+    let mut npu = npu()?;
+    f(&mut npu)
 }

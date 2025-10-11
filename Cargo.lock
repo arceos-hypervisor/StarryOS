@@ -369,6 +369,7 @@ dependencies = [
  "rdif-clk",
  "rdrive",
  "rk3588-clk",
+ "rknpu",
  "rockchip-pm",
  "sdmmc",
  "spin 0.10.0",
@@ -3460,6 +3461,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rknpu"
+version = "0.1.0"
+source = "git+https://github.com/drivercraft/rknpu#f3b98e830dd920fa5a882ca17384e05a5ea3d3c7"
+dependencies = [
+ "aarch64-cpu-ext",
+ "bare-test-macros",
+ "dma-api 0.5.1",
+ "log",
+ "mbarrier",
+ "rdif-base",
+ "spin 0.10.0",
+ "thiserror 2.0.17",
+ "tock-registers 0.10.0",
+]
+
+[[package]]
 name = "rlsf"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3474,12 +3491,13 @@ dependencies = [
 [[package]]
 name = "rockchip-pm"
 version = "0.1.0"
-source = "git+https://github.com/drivercraft/rockchip-pm.git#d20b16cf26714e37b3bc45634d31d547842d63cd"
+source = "git+https://github.com/drivercraft/rockchip-pm.git#092d75a8b7d2c476d447c26c8db96afa00d43019"
 dependencies = [
  "bare-test-macros",
  "dma-api 0.5.1",
  "log",
  "mbarrier",
+ "rdif-base",
  "tock-registers 0.10.0",
 ]
 
@@ -3970,8 +3988,10 @@ dependencies = [
  "memory_addr",
  "num_enum",
  "rand",
+ "rdrive",
  "ringbuf",
  "riscv",
+ "rknpu",
  "scope-local",
  "slab",
  "spin 0.10.0",

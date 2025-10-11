@@ -63,6 +63,10 @@ zerocopy = { version = "0.8.26", features = ["derive"] }
 
 starry-core.workspace = true
 
+rdrive.workspace = true
+rknpu.workspace = true
+
+
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 x86 = "0.52"
 

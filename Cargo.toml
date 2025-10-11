@@ -75,6 +75,10 @@ starry-vm = "0.2"
 starry-core = { path = "./core" }
 starry-api = { path = "./api" }
 
+rdrive = "0.18"
+
+rknpu = { git = "https://github.com/drivercraft/rknpu" }
+
 [package]
 name = "starry"
 version.workspace = true
