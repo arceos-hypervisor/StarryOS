@@ -331,6 +331,7 @@ name = "axdriver"
 version = "0.2.0"
 dependencies = [
  "ahci_driver",
+ "arm-gic-driver 0.15.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "axalloc",
  "axconfig",
  "axdriver_base",
@@ -342,13 +343,29 @@ dependencies = [
  "axdriver_virtio",
  "axerrno",
  "axhal",
+ "axklib 0.2.0",
  "cfg-if",
  "crate_interface",
+ "dma-api",
  "lazyinit",
  "log",
  "memory_addr",
  "printf-compat",
+ "rdif-block",
+ "rdif-intc",
+ "rdrive",
  "spin 0.10.0",
+]
+
+[[package]]
+name = "axdriver-dyn"
+version = "0.1.0"
+dependencies = [
+ "axklib 0.2.0 (git+https://github.com/arceos-hypervisor/arceos?branch=hypervisor)",
+ "cfg-if",
+ "log",
+ "memory_addr",
+ "rdrive",
 ]
 
 [[package]]
@@ -540,11 +557,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "axklib"
+version = "0.2.0"
+source = "git+https://github.com/arceos-hypervisor/arceos?branch=hypervisor#3b81289f520e33a75b489963649f0d6c2c46a9a9"
+dependencies = [
+ "axerrno",
+ "memory_addr",
+ "trait-ffi",
+]
+
+[[package]]
 name = "axklib-impl"
 version = "0.2.0"
 dependencies = [
  "axhal",
- "axklib",
+ "axklib 0.2.0",
  "axmm",
  "trait-ffi",
 ]
@@ -812,6 +839,7 @@ dependencies = [
  "axfs-ng-vfs",
  "axhal",
  "axinput",
+ "axklib-impl",
  "axlog",
  "axmm",
  "axnet",
@@ -1434,6 +1462,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
+]
+
+[[package]]
+name = "dma-api"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bef2303b0bbacb23e7e1990fb31bed5cb46bc67aa4f307c03117b81bdee4d9f"
+dependencies = [
+ "aarch64-cpu-ext",
+ "cfg-if",
+ "spin 0.10.0",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -3110,6 +3150,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rdif-block"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81ae1ba6c121eef2653dd2e0c88a209bb1d4d21e75e15cca71f19770ef327f81"
+dependencies = [
+ "cfg-if",
+ "dma-api",
+ "futures",
+ "rdif-base",
+ "spin_on",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "rdif-def"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3763,6 +3817,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "spin_on"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "076e103ed41b9864aa838287efe5f4e3a7a0362dd00671ae62a212e5e4612da2"
+dependencies = [
+ "pin-utils",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3773,6 +3836,7 @@ name = "starry"
 version = "0.1.0"
 dependencies = [
  "axdriver",
+ "axdriver-dyn",
  "axerrno",
  "axfeat",
  "axfs-ng",
@@ -3787,6 +3851,7 @@ dependencies = [
  "cfg-if",
  "linkme",
  "linux-raw-sys",
+ "rdrive",
  "starry-api",
  "starry-core",
  "starry-process",

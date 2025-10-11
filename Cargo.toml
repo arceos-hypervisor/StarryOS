@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["api", "core"]
+members = ["api", "core", "crates/axdriver-dyn"]
 exclude = ["arceos", "crates/axdriver_crates"]
 
 [workspace.package]
@@ -41,6 +41,7 @@ axnet = { path = "arceos/modules/axnet" }
 axruntime = { path = "arceos/modules/axruntime" }
 axsync = { path = "arceos/modules/axsync" }
 axtask = { path = "arceos/modules/axtask", features = ["task-ext"] }
+axdriver-dyn = { path = "crates/axdriver-dyn" }
 
 axbacktrace = "0.1"
 axerrno = "0.1"
@@ -104,6 +105,7 @@ qemu = [
 ]
 vf2 = ["dep:axplat-riscv64-visionfive2", "axfeat/driver-sdmmc-gpt"]
 2k1000la = ["dep:axplat-loongarch64-2k1000la", "axfeat/driver-ahci-gpt"]
+dyn = ["axfeat/driver-dyn", "dep:axdriver-dyn"]
 
 # Stubs
 pci = ["axfeat/bus-pci"]
@@ -127,6 +129,9 @@ starry-signal.workspace = true
 
 starry-core.workspace = true
 starry-api.workspace = true
+
+axdriver-dyn = { workspace = true, optional = true }
+rdrive = "0.18"
 
 [dependencies.axplat-riscv64-visionfive2]
 git = "https://github.com/Starry-OS/axplat-riscv64-visionfive2.git"

@@ -7,6 +7,8 @@ extern crate axlog;
 
 extern crate alloc;
 extern crate axruntime;
+#[cfg(feature = "dyn")]
+extern crate axdriver_dyn;
 
 use alloc::{borrow::ToOwned, vec::Vec};
 
