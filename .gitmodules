@@ -12,3 +12,6 @@
 [submodule "crates/axdriver_crates"]
 	path = crates/axdriver_crates
 	url = https://github.com/Starry-OS/axdriver_crates
+[submodule "crates/axdriver-dyn"]
+	path = crates/axdriver-dyn
+	url = https://github.com/drivercraft/axdriver-dyn
