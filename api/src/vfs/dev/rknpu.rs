@@ -1,6 +1,7 @@
-use core::{any::Any, convert::TryFrom};
+use core::{any::Any, convert::TryFrom, mem};
 
 use axfs_ng_vfs::{DeviceId, NodeFlags, VfsError, VfsResult};
+use axhal::asm::user_copy;
 use rknpu::RknpuAction;
 
 use crate::vfs::DeviceOps;
@@ -41,22 +42,37 @@ impl DeviceOps for Rknpu {
         }
         let flag = arg as *mut RknpuUserAction;
         let flag_val = unsafe { &*flag }.flag();
-        info!("flag is {:?}", unsafe { &*flag }.flag());
+        info!("flag_val is {:?}", flag_val);
 
         npu_power_on().expect("Failed to power on NPU.");
 
         if let Ok(op) = RknpuCmd::try_from(cmd) {
             match op {
                 RknpuCmd::Action => {
-                    info!("Action");
-                    let result = with_npu(|rknpu_dev| {
-                        let r = rknpu_dev.action(flag_val);
-                        r.map_err(|_| VfsError::InvalidData)
-                    });
-                    match result {
-                        Ok(_) => info!("rknpu ioctl done."),
-                        Err(e) => info!("rknpu ioctl failed: {:?}", e),
+                    let mut action_args = RknpuUserAction {
+                        flags: RknpuAction::GetHwVersion,
+                        _value: 0,
+                    };
+
+                    copy_from_user(
+                        &mut action_args as *mut _ as *mut u8,
+                        flag as *const u8,
+                        mem::size_of::<RknpuUserAction>(),
+                    )?;
+
+                    if let Err(e) = with_npu(|rknpu_dev| {
+                        rknpu_dev
+                            .action(flag_val)
+                            .map_err(|_| VfsError::InvalidData)
+                    }) {
+                        warn!("rknpu ioctl failed: {:?}", e);
                     }
+
+                    copy_to_user(
+                        flag as *mut u8,
+                        &action_args as *const _ as *const u8,
+                        mem::size_of::<RknpuUserAction>(),
+                    )?;
                 }
                 RknpuCmd::Submit => {
                     todo!()
@@ -109,6 +125,26 @@ fn npu_power_on() -> Result<(), VfsError> {
 
 // controlled in npu driver, return Ok(()) for stub
 fn npu_power_off() -> Result<(), VfsError> {
+    Ok(())
+}
+
+fn copy_from_user(dst: *mut u8, src: *const u8, size: usize) -> Result<(), axio::Error> {
+    let ret = unsafe { user_copy(dst, src, size) };
+
+    if ret != 0 {
+        warn!("[rknpu]: copy_to_user failed, ret={}", ret);
+        return Err(VfsError::InvalidData);
+    }
+    Ok(())
+}
+
+fn copy_to_user(dst: *mut u8, src: *const u8, size: usize) -> Result<(), axio::Error> {
+    let ret = unsafe { user_copy(dst, src, size) };
+
+    if ret != 0 {
+        warn!("[rknpu]: copy_to_user failed, ret={}", ret);
+        return Err(VfsError::InvalidData);
+    }
     Ok(())
 }
 
