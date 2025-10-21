@@ -8,8 +8,8 @@ mod log;
 mod r#loop;
 #[cfg(feature = "memtrack")]
 mod memtrack;
-mod rtc;
 mod rknpu;
+mod rtc;
 pub mod tty;
 
 use alloc::{format, sync::Arc};
