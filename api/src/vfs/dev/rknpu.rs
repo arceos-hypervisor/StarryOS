@@ -2,7 +2,7 @@ use core::{any::Any, convert::TryFrom, mem};
 
 use axfs_ng_vfs::{DeviceId, NodeFlags, VfsError, VfsResult};
 use axhal::asm::user_copy;
-use rknpu::RknpuAction;
+use rknpu::{RknpuAction, ioctrl::RknpuSubmit};
 
 use crate::vfs::DeviceOps;
 
@@ -65,7 +65,7 @@ impl DeviceOps for Rknpu {
                             .action(flag_val)
                             .map_err(|_| VfsError::InvalidData)
                     }) {
-                        warn!("rknpu ioctl failed: {:?}", e);
+                        warn!("rknpu action ioctl failed: {:?}", e);
                     }
 
                     copy_to_user(
@@ -75,7 +75,28 @@ impl DeviceOps for Rknpu {
                     )?;
                 }
                 RknpuCmd::Submit => {
-                    todo!()
+                    let mut submit_args =  RknpuSubmit::default();
+
+                    copy_from_user(
+                        &mut submit_args as *mut _ as *mut u8,
+                        arg as *const u8,
+                        mem::size_of::<RknpuSubmit>(),
+                    )?;
+
+                    if let Err(e) = with_npu(|rknpu_dev| {
+                        rknpu_dev
+                            .submit_ioctrl(&mut submit_args)
+                            .map_err(|_| VfsError::InvalidData)
+                    }) {
+                        warn!("rknpu submit ioctl failed: {:?}", e);
+                    }
+
+                    copy_to_user(
+                        arg as *mut u8,
+                        &submit_args as *const _ as *const u8,
+                        mem::size_of::<RknpuSubmit>(),
+                    )?;
+
                 }
                 RknpuCmd::MemCreate => {
                     todo!()
