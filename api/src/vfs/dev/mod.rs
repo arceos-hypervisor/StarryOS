@@ -9,6 +9,8 @@ mod r#loop;
 #[cfg(feature = "memtrack")]
 mod memtrack;
 mod rknpu;
+mod dma_heap;
+mod card1;
 mod rtc;
 pub mod tty;
 
@@ -283,6 +285,37 @@ fn builder(fs: Arc<SimpleFs>) -> DirMaker {
     root.add(
         "shm",
         SimpleDir::new_maker(fs.clone(), Arc::new(DirMapping::new())),
+    );
+
+    // DMA heap devices
+    let mut dma_heap_dir = DirMapping::new();
+    dma_heap_dir.add(
+        "system",
+        Device::new(
+            fs.clone(),
+            NodeType::CharacterDevice,
+            dma_heap::DMA_HEAP_SYSTEM_DEVICE_ID,
+            Arc::new(dma_heap::DmaHeapSystem::new()),
+        ),
+    );
+    root.add(
+        "dma_heap",
+        SimpleDir::new_maker(fs.clone(), Arc::new(dma_heap_dir)),
+    );
+
+    let mut dri = DirMapping::new();
+    dri.add(
+        "dri",
+        Device::new(
+            fs.clone(),
+            NodeType::CharacterDevice,
+            card1::CARD1_SYSTEM_DEVICE_ID,
+            Arc::new(card1::Card1::new()),
+        ),
+    );
+    root.add(
+        "card1",
+        SimpleDir::new_maker(fs.clone(), Arc::new(dri)),
     );
 
     // Loop devices

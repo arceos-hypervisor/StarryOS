@@ -16,8 +16,7 @@ use axfs_ng::FS_CONTEXT;
 
 mod entry;
 
-pub const CMDLINE: &[&str] = &["/bin/sh", "-c", include_str!("init.sh")];
-
+pub const CMDLINE: &[&str] = &["/rknn_yolov8_demo/rknn_yolov8_demo", "/rknn_yolov8_demo/model/yolov8.rknn", "/rknn_yolov8_demo/model/bus.jpg"];
 #[unsafe(no_mangle)]
 fn main() {
     starry_api::init();
