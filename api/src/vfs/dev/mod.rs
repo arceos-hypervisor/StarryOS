@@ -8,9 +8,10 @@ mod log;
 mod r#loop;
 #[cfg(feature = "memtrack")]
 mod memtrack;
-mod rknpu;
+pub mod rknpu;
 mod dma_heap;
-mod card1;
+pub mod card0;
+pub mod card1;
 mod rtc;
 pub mod tty;
 
@@ -212,15 +213,15 @@ fn builder(fs: Arc<SimpleFs>) -> DirMaker {
         );
     }
 
-    root.add(
-        "rknpu",
-        Device::new(
-            fs.clone(),
-            NodeType::CharacterDevice,
-            DeviceId::new(5, 0),
-            Arc::new(rknpu::Rknpu),
-        ),
-    );
+    // root.add(
+    //     "rknpu",
+    //     Device::new(
+    //         fs.clone(),
+    //         NodeType::CharacterDevice,
+    //         DeviceId::new(5, 0),
+    //         Arc::new(rknpu::Rknpu),
+    //     ),
+    // );
 
     root.add(
         "tty",
@@ -303,9 +304,19 @@ fn builder(fs: Arc<SimpleFs>) -> DirMaker {
         SimpleDir::new_maker(fs.clone(), Arc::new(dma_heap_dir)),
     );
 
-    let mut dri = DirMapping::new();
-    dri.add(
-        "dri",
+    // DRI devices
+    let mut dri_dir = DirMapping::new();
+    // dri_dir.add(
+    //     "card0",
+    //     Device::new(
+    //         fs.clone(),
+    //         NodeType::CharacterDevice,
+    //         card0::CARD0_SYSTEM_DEVICE_ID,
+    //         Arc::new(card0::Card0::new()),
+    //     ),
+    // );
+    dri_dir.add(
+        "card1",
         Device::new(
             fs.clone(),
             NodeType::CharacterDevice,
@@ -314,8 +325,8 @@ fn builder(fs: Arc<SimpleFs>) -> DirMaker {
         ),
     );
     root.add(
-        "card1",
-        SimpleDir::new_maker(fs.clone(), Arc::new(dri)),
+        "dri",
+        SimpleDir::new_maker(fs.clone(), Arc::new(dri_dir)),
     );
 
     // Loop devices
